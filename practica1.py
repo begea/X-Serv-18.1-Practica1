@@ -1,59 +1,78 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*
+#!/usr/bin/python3
 
 import webapp
+import urllib.parse
 
 class contentApp (webapp.webApp):
 
     formulario = '<form method="POST"> Pon una URL: <input type="text" name="contenido" value = "http://">' + \
-                 '<input type=submit value=Enviar></form> URLs a poder introducir: "http://github.com"' + \
-                 '\r\n\r\n"http://gsyc.es"\r\n\r\n"http:/aulavirtual.urjc.es"\r\n\r\ny\r\n\r\n"http://urjc.es"'
+                 '<input type=submit value=Enviar></form>'
 
-    url1='Pincha sobre la URL <a href="http://www.github.com" target="_blank">http://www.github.com</a>'
-    url2='Pincha sobre la URL <a href="http://www.gsyc.es" target="_blank">http://www.gsyc.es</a>'
-    url3='Pincha sobre la URL <a href="http://www.urjc.es" target="_blank">http://www.urjc.es</a>'
-    url4='Pincha sobre la URL <a href="http://www.aulavirtual.urjc.es" target="_blank">http://www.aulavirtual.urjc.es</a>'
-    content1 = {'/':formulario,
-               '/1': url1,
-               '/2': url2,
-               '/3': url3,
-               '/4': url4
+    content = {'/': formulario,
                }
 
-    content2 = {'/http://github.com': 'http://github.com --------> localhost:1235/1',
-               '/http://gsyc.es': 'http://gsyc.es --------> localhost:1235/2',
-               '/http://urjc.es': 'http://urjc.es --------> localhost:1235/3',
-               '/http://aulavirtual.urjc.es': 'http://aulavirtual.urjc.es --------> localhost:1235/4'
-               }
+    diccionario1 = {}
+    diccionario2 = {}
+    secuencia = 0
 
     def parse(self, request):
 
-        metodo = request.split(' ', 2)[0]
-        recurso = request.split(' ', 2)[1]
-        cuerpo = request.split('\r\n\r\n', 1)[1]
-        return metodo, recurso, cuerpo
+            metodo = request.split(' ', 1)[0]
+            recurso = request.split(' ', 2)[1]
+
+            if metodo == "PUT":
+                cuerpo = request.split('=')[-1]
+            elif metodo == "POST":
+                cuerpo = request.split('=')[-1]
+            else:
+                cuerpo = ""
+            return (metodo, recurso, cuerpo)
 
     def process(self, peticion):
 
         (metodo, recurso, cuerpo) = peticion
         global htmlCode
         if metodo == "GET":
-            if recurso in self.content1:
+            if recurso in self.content:
                 httpCode = "200 OK"
-                htmlBody = "<html><body>" + self.content1[recurso]
+                htmlBody = "<html><body><h1>Acortador de URLs</h1>" + self.content[recurso] + "</body></html>"
+
+                #for i in self.diccionario1:
+                    #htmlBody = htmlBody + i + ": " + self.diccionario1[i] + "<br>"
 
             else:
-                httpCode = "404 Not Found"
-                htmlBody = "No estas pidiendo el recurso correctamente. Prueba otra vez."
+                try:
+                    recurso = recurso[1:]
+                    numero = int(recurso[1:])
+                    try:
+
+                        httpCode = " 302 Found\nLocation: http://" + self.diccionario2[numero]
+                        htmlBody = ""
+                    except KeyError:
+                        httpCode = "404 Not Found"
+                        htmlBody = "<html><body>Recurso no disponible" + self.formulario + "</body></html>"
+                except ValueError:
+                        httpCode = "404 Not Found"
+                        htmlBody = "<html><body>Recurso no disponible." + self.formulario + "</body></html>"
+
 
         elif metodo == "POST":
-            self.content1[recurso] = cuerpo.split('=')[1]
-            if recurso in self.content2:
-                httpCode = "200 OK"
-                htmlBody = "<html><body>" + self.content2[recurso]
+
+            if cuerpo == "":
+                httpCode = "404"
+                htmlBody = "<html><body>Not Found"+self.formulario+" </body></html>"
             else:
-                httpCode = "200 OK"
-                htmlBody = "No estas pidiendo una de las URLs de la lista."
+                if cuerpo in self.diccionario1:
+                    httpCode = "200 OK"
+                    htmlBody = "<html><body><a href= http://localhost:1235/" + str(self.diccionario1[cuerpo])+"> http://localhost:1235/" + str(self.diccionario1[cuerpo]) +"</a></body></html>"
+
+                else:
+                    self.secuencia = self.secuencia + 1
+                    self.diccionario1[cuerpo] = self.secuencia
+                    self.diccionario2[self.secuencia] = cuerpo
+                    httpCode = "200 OK"
+                    htmlBody = "<html><body><a href= http://localhost:1235/"+ str(self.diccionario1[cuerpo])+"> http://localhost:1235/"+ str(self.diccionario1[cuerpo])+ "</a></body></html>"
+
         else:
             httpCode = "405 Method Not Allowed"
             htmlBody = "No estas haciendo ni GET ni POST. Prueba otra vez."
